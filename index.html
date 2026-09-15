@@ -1,0 +1,1102 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>학생 건강검진 관리</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --ink:#111111;
+    --paper:#ffffff;
+    --line:#111111;
+    --line-soft:#d9d9d9;
+    --danger:#b0503f;
+    font-family: 'Pretendard', -apple-system, 'Noto Sans KR', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html, body{margin:0; padding:0; background:var(--paper); color:var(--ink); min-height:100%;}
+  body{display:flex; flex-direction:column; min-height:100vh;}
+
+  header{
+    padding:20px 24px; border-bottom:2px solid var(--line);
+    display:flex; align-items:baseline; gap:12px; flex-wrap:wrap;
+  }
+  header h1{font-size:18px; margin:0; letter-spacing:-0.01em; font-weight:700;}
+  header span{color:#777; font-size:12.5px;}
+
+  main{flex:1; width:100%; max-width:920px; margin:0 auto; padding:28px 20px 60px;}
+
+  .card{
+    background:var(--paper); border:2px solid var(--line); border-radius:6px;
+    padding:22px; margin-bottom:20px;
+  }
+  h2{font-size:14.5px; margin:0 0 16px; font-weight:700;}
+
+  label{display:block; font-size:12.5px; margin-bottom:6px; color:#555;}
+  input[type=password], input[type=text], input[type=number]{
+    width:100%; padding:9px 10px; border:2px solid var(--line-soft); border-radius:4px;
+    font-size:14px; background:#fff; color:var(--ink);
+    transition: border-color .15s ease;
+  }
+  input:focus{outline:none; border-color:var(--ink);}
+
+  button{
+    background:#fff; color:var(--ink); border:2px solid var(--line); border-radius:4px;
+    padding:9px 16px; font-size:13px; cursor:pointer; font-weight:600;
+    transition: background-color .15s ease, color .15s ease, transform .08s ease;
+  }
+  button:hover{background:var(--ink); color:#fff;}
+  button:active{transform: scale(0.96);}
+  button.danger{border-color:var(--danger); color:var(--danger);}
+  button.danger:hover{background:var(--danger); color:#fff;}
+  button.primary-block{width:100%; padding:11px;}
+
+  table{border-collapse:collapse; font-size:13.5px; width:max-content; min-width:100%;}
+  th, td{padding:9px 10px; border-bottom:2px solid var(--line-soft); text-align:left; white-space:nowrap;}
+  th{color:#666; font-weight:700; font-size:11.5px; text-transform:uppercase; letter-spacing:.03em;}
+  td{max-width:280px; white-space:normal; word-break:keep-all; overflow-wrap:break-word;}
+  tr{transition: background-color .12s ease;}
+  tr:hover td{background:#fafafa;}
+  .table-wrap{overflow-x:auto; border:2px solid var(--line-soft); border-radius:4px; max-width:100%;}
+  .table-wrap table{border:none;}
+  .table-wrap th:first-child, .table-wrap td:first-child{padding-left:12px;}
+
+  .row{display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
+  .row > input{flex:1; min-width:80px;}
+  .row button{flex:none;}
+
+  .toolbar{display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap;}
+  .toolbar h2{margin:0;}
+
+  #login-screen{
+    flex:1; width:100%;
+    display:flex; align-items:center; justify-content:center;
+    padding:24px;
+  }
+  #login-box{
+    width:100%; max-width:340px; padding:36px 28px; text-align:center;
+    border:2px solid var(--line); border-radius:8px;
+  }
+  #login-screen h1{font-size:17px; margin-bottom:4px; font-weight:700;}
+  #login-screen p{color:#777; font-size:13px; margin-top:0; margin-bottom:22px;}
+  #login-error{color:var(--danger); font-size:12.5px; margin-top:10px; min-height:18px;}
+
+  .hidden{display:none !important;}
+  .muted{color:#888; font-size:12.5px;}
+
+  footer{
+    border-top:2px solid var(--line); padding:16px 24px; text-align:center;
+    font-size:11.5px; color:#999; letter-spacing:.02em;
+  }
+
+  .stat-box{
+    flex:1; min-width:110px; border:2px solid var(--line); border-radius:4px;
+    padding:12px; text-align:center;
+  }
+  .stat-box .num{font-size:22px; font-weight:800;}
+  .stat-box .label{font-size:11.5px; color:#777; margin-top:2px;}
+
+  .navbar{
+    display:flex; gap:8px; flex-wrap:wrap; padding:12px 24px;
+    border-bottom:2px solid var(--line);
+  }
+  .navbar button{font-size:12.5px; padding:8px 12px;}
+  .navbar button.active{background:var(--ink); color:#fff;}
+  .navbar .spacer{flex:1;}
+  .navbar button.logout{border-color:var(--danger); color:var(--danger);}
+  .navbar button.logout:hover{background:var(--danger); color:#fff;}
+
+  /* ===== 반응형 ===== */
+  @media (max-width: 720px){
+    main{padding:20px 14px 48px;}
+    .card{padding:16px;}
+    header{padding:16px 16px;}
+  }
+  @media (max-width: 480px){
+    .row{flex-direction:column; align-items:stretch;}
+    .row > *{width:100%;}
+    .toolbar{flex-direction:column; align-items:stretch;}
+    .toolbar > div{width:100%;}
+    table{font-size:12.5px;}
+  }
+</style>
+</head>
+<body>
+
+<div id="login-screen" class="hidden">
+  <div id="login-box">
+    <h1>학생 건강검진 관리</h1>
+    <p>보건교사 전용 · 비밀번호를 입력하세요</p>
+    <input type="password" id="login-password" placeholder="비밀번호">
+    <div style="margin-top:12px;"><button class="primary-block" onclick="login()">로그인</button></div>
+    <div id="login-error"></div>
+  </div>
+</div>
+
+<div id="app" class="hidden" style="display:flex; flex-direction:column; flex:1;">
+  <header>
+    <h1>학생 건강검진 관리</h1>
+    <span id="header-sub">전교생 명단</span>
+  </header>
+  <nav class="navbar">
+    <button class="nav-btn" id="nav-sec-password" title="로그인 비밀번호를 변경합니다" onclick="showSection('sec-password')">비밀번호 변경</button>
+    <button class="nav-btn" id="nav-sec-roster" title="전교생 명단을 등록·수정합니다" onclick="showSection('sec-roster'); loadRoster();">전교생 명단</button>
+    <button class="nav-btn" id="nav-sec-upload" title="검진기관 파일을 업로드해 매칭·반영합니다" onclick="showSection('sec-upload')">검진결과 업로드</button>
+    <button class="nav-btn" id="nav-sec-results" title="학생별 검진 결과를 조회합니다" onclick="showSection('sec-results'); loadResults();">검진결과 조회</button>
+    <button class="nav-btn" id="nav-sec-unchecked" title="아직 검진받지 않은 학생을 조회·관리합니다" onclick="showSection('sec-unchecked'); loadUnchecked();">미검진자 조회 및 관리</button>
+    <button class="nav-btn" id="nav-sec-stats" title="유소견 항목 및 BMI 통계를 확인합니다" onclick="showSection('sec-stats'); loadStats();">유소견 통계</button>
+    <button class="nav-btn" id="nav-sec-download" title="나이스용/전체 결과 엑셀을 내려받습니다" onclick="showSection('sec-download')">엑셀 다운로드</button>
+    <button class="nav-btn" id="nav-sec-keywords" title="유소견 판정 키워드를 관리합니다" onclick="showSection('sec-keywords'); loadKeywords();">유소견 키워드설정</button>
+    <span class="spacer"></span>
+    <button class="logout" title="로그아웃합니다" onclick="logout()">로그아웃</button>
+  </nav>
+  <main>
+
+    <div class="card app-section" id="sec-password">
+      <h2>비밀번호 변경</h2>
+      <p class="muted">로그인에 사용하는 공유 비밀번호를 바꿉니다.</p>
+      <div class="row">
+        <input type="password" id="old-password" placeholder="현재 비밀번호">
+        <input type="password" id="new-password" placeholder="새 비밀번호">
+        <button onclick="changePassword()">변경</button>
+      </div>
+      <p class="muted" id="password-msg"></p>
+    </div>
+
+    <div class="card app-section" id="sec-roster">
+      <div class="toolbar">
+        <h2>전교생 명단</h2>
+        <div class="row" style="flex:none;">
+          <input type="file" id="roster-file" accept=".xlsx,.xls,.csv" style="flex:none; width:auto;">
+          <button onclick="uploadRosterFile()">엑셀로 일괄 등록</button>
+        </div>
+      </div>
+      <p class="muted">전체 학생 명단을 관리합니다. 나이스에서 다운로드한 학생 명렬표를 그대로 업로드해도 되고, 다른 형식이어도 헤더를 자동으로 인식합니다. 엑셀 업로드는 기존 명단을 전부 지우고 새로 대체합니다.</p>
+      <p class="muted"><strong>업로드 전 확인:</strong> 엑셀 파일의 첫 번째 줄이 <strong>학년, 반, 번호, 이름</strong> 순서의 항목 이름(헤더)이어야 합니다. 제목만 적힌 줄이 맨 위에 있다면 지워주세요.</p>
+
+      <div class="row" style="margin-bottom:14px;">
+        <input type="number" id="new-grade" placeholder="학년">
+        <input type="number" id="new-class" placeholder="반">
+        <input type="number" id="new-number" placeholder="번호">
+        <input type="text" id="new-name" placeholder="이름">
+        <button onclick="addStudent()">추가</button>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>학년</th><th>반</th><th>번호</th><th>이름</th><th></th></tr></thead>
+          <tbody id="roster-body"></tbody>
+        </table>
+      </div>
+      <p class="muted" id="roster-count"></p>
+    </div>
+
+    <div class="card app-section" id="sec-upload">
+      <h2>검진결과 업로드</h2>
+      <p class="muted">검진기관 엑셀 파일을 업로드해서 전교생 명단과 매칭시키고, 신규/변경 내용을 검진결과에 반영합니다.</p>
+      <p class="muted"><strong>업로드 전 확인:</strong> 엑셀 파일 맨 위에 "2025년도 학생 건강검진 결과"처럼 제목만 적힌 줄이 있다면 그 줄은 지워주세요. 파일의 <strong>첫 번째 줄이 곧바로 항목 이름(헤더)</strong>이어야 정상적으로 인식됩니다.</p>
+      <div class="row" style="margin-bottom:14px;">
+        <input type="text" id="default-health-org" placeholder="건강검진기관명 (기본값)">
+        <input type="text" id="default-dental-org" placeholder="구강검진기관명 (기본값)">
+      </div>
+      <div class="row" style="margin-bottom:14px;">
+        <input type="file" id="result-file" accept=".xlsx,.xls,.csv" style="flex:none; width:auto;">
+        <button onclick="analyzeResultFile()">파일 분석</button>
+      </div>
+
+      <div id="mapping-section" class="hidden">
+        <p class="muted">이름이 똑같은 항목은 자동으로 매핑됩니다(진한 배경 없는 행). 옅은 노란 배경으로 표시된 항목만 직접 골라주세요.</p>
+        <div class="table-wrap" style="margin-bottom:14px;">
+          <table>
+            <thead><tr><th>시스템 항목</th><th>업로드 파일 컬럼</th></tr></thead>
+            <tbody id="mapping-body"></tbody>
+          </table>
+        </div>
+        <button onclick="runPreview()">매칭 미리보기</button>
+      </div>
+
+      <div id="preview-section" class="hidden" style="margin-top:18px;">
+        <p id="preview-summary" class="muted"></p>
+
+        <div id="unmatched-wrap" class="hidden">
+          <h2 style="font-size:13px;">매칭 안 된 학생 (직접 선택)</h2>
+          <div class="table-wrap" style="margin-bottom:14px;">
+            <table>
+              <thead><tr><th>파일상 이름</th><th>연결할 학생</th></tr></thead>
+              <tbody id="unmatched-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="changes-wrap" class="hidden">
+          <h2 style="font-size:13px;">변경될 항목</h2>
+          <div class="table-wrap" style="margin-bottom:14px;">
+            <table>
+              <thead><tr><th>학생</th><th>항목</th><th>기존값</th><th>새값</th></tr></thead>
+              <tbody id="changes-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <button onclick="commitMergeNow()">적용하기</button>
+      </div>
+
+      <hr style="margin:22px 0; border:none; border-top:2px solid var(--line-soft);">
+
+      <h2 style="font-size:13px;">개별 학생 검진완료 처리</h2>
+      <p class="muted">파일 업로드 없이 학생 한 명만 검진기관을 입력해서 검진완료 처리할 수 있습니다. (미검진자 목록에서 바로 제외됩니다)</p>
+      <div class="row" style="margin-bottom:10px;">
+        <input type="number" id="single-grade" placeholder="학년" style="max-width:70px;">
+        <input type="number" id="single-class" placeholder="반" style="max-width:70px;">
+        <input type="number" id="single-number" placeholder="번호" style="max-width:70px;">
+        <button onclick="lookupSingleStudent()">학생 확인</button>
+        <span id="single-student-name" class="muted"></span>
+      </div>
+      <div class="row">
+        <input type="text" id="single-health-org" placeholder="건강검진기관명">
+        <input type="text" id="single-dental-org" placeholder="구강검진기관명 (선택)">
+        <button onclick="markSingleChecked()">검진완료 처리</button>
+      </div>
+    </div>
+
+    <div class="card app-section" id="sec-results">
+      <div class="toolbar">
+        <h2>검진결과 조회</h2>
+      </div>
+      <p class="muted">학년/반/번호/이름으로 특정 학생을 찾거나, 표시할 항목을 직접 골라서 조회합니다. 유소견 항목이 있는 학생은 파란색 글자로 표시됩니다.</p>
+
+      <div class="row" style="margin-bottom:10px;">
+        <input type="number" id="results-grade" placeholder="학년">
+        <input type="number" id="results-class" placeholder="반">
+        <input type="number" id="results-number" placeholder="번호">
+        <input type="text" id="results-name" placeholder="이름">
+        <button onclick="loadResults()">조회</button>
+        <button onclick="downloadResultsExcel()">엑셀 다운로드</button>
+      </div>
+
+      <div class="row" style="margin-bottom:14px;">
+        <label style="display:flex; align-items:center; gap:6px; width:auto; flex:none; font-size:13px;">
+          <input type="checkbox" id="results-only-flagged" style="width:auto;" onchange="loadResults()"> 유소견 학생만 보기
+        </label>
+        <button onclick="toggleColumnPicker()">표시 항목 선택</button>
+      </div>
+
+      <div id="column-picker" class="hidden" style="margin-bottom:16px; padding:12px; border:2px solid var(--line-soft); border-radius:4px;">
+        <div class="row" style="margin-bottom:10px;">
+          <button onclick="selectAllColumns()">전체 선택</button>
+          <button onclick="deselectAllColumns()">전체 해제</button>
+          <button onclick="selectDefaultColumns()">기본 항목</button>
+        </div>
+        <div id="column-checkboxes" style="display:flex; flex-wrap:wrap; gap:10px;"></div>
+        <div style="margin-top:10px;"><button onclick="loadResults()">적용</button></div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead id="results-thead"></thead>
+          <tbody id="results-body"></tbody>
+        </table>
+      </div>
+      <p class="muted" id="results-count"></p>
+    </div>
+
+    <div class="card app-section" id="sec-unchecked">
+      <div class="toolbar">
+        <h2>미검진자 조회 및 관리</h2>
+        <div class="row" style="flex:none;">
+          <input type="number" id="unchecked-grade" placeholder="학년" style="width:70px;">
+          <input type="number" id="unchecked-class" placeholder="반" style="width:70px;">
+          <button onclick="loadUnchecked()">조회</button>
+          <button onclick="downloadUnchecked()">엑셀 다운로드</button>
+        </div>
+      </div>
+      <p class="muted">전교생 명단 중 아직 검진결과가 없는 학생만 보여줍니다. "완료처리"는 검진기관명을 입력해 실제로 검진을 받은 것으로 처리해서 목록에서 제외하고, "사유입력"은 개인 사유 등으로 끝까지 검진을 받지 않는 학생을 미검진자로 확정하면서 사유를 남깁니다(목록에는 계속 남되 사유가 표시됩니다).</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>학년</th><th>반</th><th>번호</th><th>이름</th><th>미검진 사유</th><th></th></tr></thead>
+          <tbody id="unchecked-body"></tbody>
+        </table>
+      </div>
+      <p class="muted" id="unchecked-count"></p>
+    </div>
+
+    <div class="card app-section" id="sec-stats">
+      <div class="toolbar">
+        <h2>유소견 통계</h2>
+        <div class="row" style="flex:none;">
+          <input type="number" id="stats-grade" placeholder="학년" style="width:70px;">
+          <input type="number" id="stats-class" placeholder="반" style="width:70px;">
+          <button onclick="loadStats()">조회</button>
+        </div>
+      </div>
+      <p class="muted">검사대상자수·완료율과 6개 유소견 항목을 확인합니다. 체질량지수(BMI) 분포와 척추측만은 유소견자수와 별개로 참고용으로만 집계됩니다.</p>
+      <div id="stats-summary" class="row" style="margin-bottom:14px;"></div>
+      <div class="table-wrap" style="margin-bottom:14px;">
+        <table>
+          <thead><tr><th>유소견 항목</th><th>인원</th></tr></thead>
+          <tbody id="stats-body"></tbody>
+        </table>
+      </div>
+      <h2 style="font-size:13px;">체질량지수(BMI) 분포</h2>
+      <div id="bmi-summary" class="row" style="margin-bottom:16px;"></div>
+
+      <h2 style="font-size:13px;">척추측만 (참고용, 유소견자수 미포함)</h2>
+      <div id="scoliosis-summary" class="row"></div>
+    </div>
+
+    <div class="card app-section" id="sec-download">
+      <h2>엑셀 다운로드</h2>
+      <p class="muted">학년/반을 입력하면 해당 범위만, 비워두면 전체(전체반)로 다운로드됩니다. 미검진자가 있으면 전체 결과 파일에 "미검진자" 시트 탭이 자동으로 추가됩니다.</p>
+
+      <div class="row" style="margin-bottom:16px;">
+        <input type="number" id="download-grade" placeholder="학년 (비우면 전체)">
+        <input type="number" id="download-class" placeholder="반 (비우면 전체)">
+      </div>
+
+      <div style="margin-bottom:16px;">
+        <button onclick="downloadNeisBody()">나이스용 · 신체발달</button>
+        <p class="muted">키·몸무게 등 신체계측 항목만 담긴 나이스 업로드용 파일입니다.</p>
+      </div>
+      <div style="margin-bottom:16px;">
+        <button onclick="downloadNeisHealth()">나이스용 · 건강검진</button>
+        <p class="muted">검진기관과 검진날짜를 포함한 나이스 업로드용 파일입니다.</p>
+      </div>
+      <div>
+        <button onclick="downloadAll()">전체 검진결과 (반/번호순)</button>
+        <p class="muted">선택한 학년(전체 포함)의 검진결과를 하나로 합친 표입니다.</p>
+      </div>
+    </div>
+
+    <div class="card app-section" id="sec-keywords">
+      <div class="toolbar">
+        <h2>유소견 키워드 설정</h2>
+        <button onclick="addKeywordRow()">항목 추가</button>
+      </div>
+      <p class="muted">종합소견·검사값에서 유소견을 판정할 키워드를 관리합니다. (시트를 열지 않고 여기서 바로 수정)</p>
+      <div class="table-wrap" style="margin-bottom:14px;">
+        <table>
+          <thead><tr><th>유소견 항목</th><th>키워드</th><th></th></tr></thead>
+          <tbody id="keywords-body"></tbody>
+        </table>
+      </div>
+      <button onclick="saveKeywordsNow()">저장</button>
+      <p class="muted" id="keywords-msg"></p>
+    </div>
+
+  </main>
+  <footer>제작: 알쏭달쏭 버전1</footer>
+</div>
+
+<script>
+// ⚠️ 배포 후 Apps Script 웹 앱 URL로 교체하세요 (배포 → 새 배포 → 웹 앱, 액세스: 전체)
+const API_URL = 'https://script.google.com/macros/s/여기에_배포된_ID_붙여넣기/exec';
+
+let TOKEN = localStorage.getItem('hc_token') || null;
+
+async function callApi(action, payload) {
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    body: JSON.stringify({ action, token: TOKEN, payload: payload || {} })
+  });
+  const json = await res.json();
+  if (!json.ok && json.error === 'UNAUTHORIZED') {
+    TOKEN = null;
+    localStorage.removeItem('hc_token');
+    showLogin();
+  }
+  return json;
+}
+
+async function login() {
+  const password = document.getElementById('login-password').value;
+  const errBox = document.getElementById('login-error');
+  errBox.textContent = '';
+  const res = await callApi('login', { password });
+  if (res.ok) {
+    TOKEN = res.token;
+    localStorage.setItem('hc_token', TOKEN);
+    showApp();
+  } else {
+    errBox.textContent = res.message || '로그인에 실패했습니다.';
+  }
+}
+
+async function changePassword() {
+  const oldPassword = document.getElementById('old-password').value;
+  const newPassword = document.getElementById('new-password').value;
+  const msgBox = document.getElementById('password-msg');
+  if (!oldPassword || !newPassword) { msgBox.textContent = '현재/새 비밀번호를 모두 입력하세요.'; return; }
+  const res = await callApi('changePassword', { oldPassword, newPassword });
+  if (res.ok) {
+    msgBox.textContent = '비밀번호가 변경되었습니다.';
+    document.getElementById('old-password').value = '';
+    document.getElementById('new-password').value = '';
+  } else {
+    msgBox.textContent = res.message || '비밀번호 변경에 실패했습니다.';
+  }
+}
+
+function showLogin() {
+  document.getElementById('login-screen').classList.remove('hidden');
+  document.getElementById('app').classList.add('hidden');
+}
+
+function showApp() {
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  loadRoster();
+  loadResults();
+  loadUnchecked();
+  loadStats();
+  loadKeywords();
+  showSection('sec-roster');
+}
+
+function showSection(id) {
+  document.querySelectorAll('.app-section').forEach(el => el.classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  const navBtn = document.getElementById('nav-' + id);
+  if (navBtn) navBtn.classList.add('active');
+}
+
+function logout() {
+  TOKEN = null;
+  localStorage.removeItem('hc_token');
+  showLogin();
+}
+
+async function loadRoster() {
+  const res = await callApi('getRoster');
+  if (!res.ok) return;
+  const tbody = document.getElementById('roster-body');
+  tbody.innerHTML = '';
+  res.data.forEach(s => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${s.학년}</td><td>${s.반}</td><td>${s.번호}</td><td>${s.이름}</td>
+      <td><button class="danger" onclick='deleteStudent(${s.학년},${s.반},${s.번호})'>삭제</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+  document.getElementById('roster-count').textContent = `총 ${res.data.length}명`;
+}
+
+async function addStudent() {
+  const 학년 = document.getElementById('new-grade').value;
+  const 반 = document.getElementById('new-class').value;
+  const 번호 = document.getElementById('new-number').value;
+  const 이름 = document.getElementById('new-name').value;
+  if (!학년 || !반 || !번호 || !이름) { alert('학년/반/번호/이름을 모두 입력하세요.'); return; }
+  await callApi('addStudent', { 학년, 반, 번호, 이름 });
+  document.getElementById('new-grade').value = '';
+  document.getElementById('new-class').value = '';
+  document.getElementById('new-number').value = '';
+  document.getElementById('new-name').value = '';
+  loadRoster();
+}
+
+async function deleteStudent(학년, 반, 번호) {
+  if (!confirm('이 학생을 명단에서 삭제할까요?')) return;
+  await callApi('deleteStudent', { 학년, 반, 번호 });
+  loadRoster();
+}
+
+function uploadRosterFile() {
+  const fileInput = document.getElementById('roster-file');
+  const file = fileInput.files[0];
+  if (!file) { alert('파일을 선택하세요.'); return; }
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const json = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+    if (json.length === 0) { alert('시트에서 데이터를 찾지 못했습니다.'); return; }
+
+    // 헤더의 앞뒤 공백을 무시하고, "이름"/"성명" 같은 흔한 표현 차이를 허용해서 컬럼을 찾는다
+    const rawHeaders = Object.keys(json[0]);
+    const normalize = s => (s || '').toString().replace(/\s/g, '');
+    const findHeader = candidates => rawHeaders.find(h => candidates.includes(normalize(h)));
+
+    const colGrade = findHeader(['학년']);
+    const colClass = findHeader(['반']);
+    const colNumber = findHeader(['번호', '출석번호']);
+    const colName = findHeader(['이름', '성명']);
+
+    if (!colGrade || !colClass || !colNumber || !colName) {
+      alert('파일에서 학년/반/번호/이름(또는 성명) 컬럼을 찾지 못했습니다.\n실제 헤더: ' + rawHeaders.join(', '));
+      return;
+    }
+
+    const students = json.map(r => ({
+      학년: r[colGrade], 반: r[colClass], 번호: r[colNumber], 이름: r[colName]
+    }));
+
+    if (!confirm(`${students.length}명의 명단으로 기존 명단을 전체 교체합니다. 계속할까요?`)) return;
+    const res = await callApi('bulkUploadRoster', { students });
+    if (res.ok) loadRoster();
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// 자동 로그인 시도 (토큰이 남아있는 경우)
+if (TOKEN) {
+  showApp();
+} else {
+  showLogin();
+}
+
+// ============ 검진결과 업로드 + 매핑 ============
+
+const SYSTEM_FIELDS = [
+  '학년', '반', '번호', '이름', '성별', '생년월일',
+  '키(cm)', '몸무게(kg)', 'BMI', 'BMI판정', '건강검진일',
+  '척추', '시력_나안_좌', '시력_나안_우', '시력_교정_좌', '시력_교정_우',
+  '안질환', '청력_좌', '청력_우', '귓병', '콧병', '목병', '피부병',
+  '요단백', '요잠혈',
+  '혈당(식전)(mg/dl)', '총콜레스테롤(mg/dl)', 'HDL(mg/dL)', '중성지방(mg/dL)', 'LDL(mg/dL)',
+  'AST(U/L)', 'ALT(U/L)', '혈색소(g/dl)', '결핵흉부방사선검사',
+  '수축기', '이완기', '허리둘레', '기타', '건강검진_종합소견',
+  '충치치아_유무', '충치치아_개수_상', '충치치아_개수_하',
+  '충치발생위험치아_유무', '충치발생위험치아_개수_상', '충치발생위험치아_개수_하',
+  '결손치아(영구치아)_유무', '결손치아(영구치아)__개수_상', '결손치아(영구치아)__개수_하',
+  '구내염및연조직질환', '부정교합', '구강위생상태', '그밖의치아상태',
+  '치주질환_잇몸병_유무', '치주질환_종류', '턱관절이상', '치아마모증', '제3대구치(사랑니)',
+  '구강검진_종합소견', '구강검진일',
+  '건강검진기관', '구강검진기관'
+];
+
+let parsedResultRows = [];   // 파일에서 읽은 원본 행 (파일 자체 헤더 기준)
+let fileHeaders = [];
+let rosterCache = [];
+let lastPreviewRows = [];    // 매핑을 적용한 행 (시스템 항목 기준)
+let unmatchedResolutions = {}; // { rowIndex: {학년,반,번호} }
+
+function analyzeResultFile() {
+  const fileInput = document.getElementById('result-file');
+  const file = fileInput.files[0];
+  if (!file) { alert('파일을 선택하세요.'); return; }
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+    // "총괄표"가 포함된 시트를 우선 사용, 없으면 첫 번째 시트
+    const sheetName = wb.SheetNames.find(n => n.indexOf('총괄표') !== -1) || wb.SheetNames[0];
+    const sheet = wb.Sheets[sheetName];
+    parsedResultRows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+    if (parsedResultRows.length === 0) { alert('시트에서 데이터를 찾지 못했습니다.'); return; }
+    fileHeaders = Object.keys(parsedResultRows[0]);
+    await renderMappingUI();
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+async function renderMappingUI() {
+  const mapRes = await callApi('getMapping');
+  const savedMap = {};
+  if (mapRes.ok) mapRes.data.forEach(m => savedMap[m.시스템항목명] = m.업로드파일_컬럼명);
+
+  // 공백을 무시하고 이름이 똑같은 파일 컬럼을 자동으로 찾아 매핑한다
+  const normalize = s => (s || '').toString().replace(/\s/g, '');
+  const headerByNormalized = {};
+  fileHeaders.forEach(h => { headerByNormalized[normalize(h)] = h; });
+
+  const tbody = document.getElementById('mapping-body');
+  tbody.innerHTML = '';
+  SYSTEM_FIELDS.forEach(field => {
+    // 우선순위: 이전에 저장한 매핑(파일에 그 컬럼이 실제로 있을 때) → 이름이 일치하는 컬럼 → 미지정
+    let defaultCol = '';
+    if (savedMap[field] && fileHeaders.includes(savedMap[field])) {
+      defaultCol = savedMap[field];
+    } else if (headerByNormalized[normalize(field)]) {
+      defaultCol = headerByNormalized[normalize(field)];
+    }
+
+    const tr = document.createElement('tr');
+    if (!defaultCol) tr.style.backgroundColor = '#fff7e6'; // 자동 매핑 안 된 항목은 옅은 배경으로 강조
+
+    const options = ['<option value="">(사용 안 함)</option>']
+      .concat(fileHeaders.map(h => `<option value="${h}" ${defaultCol === h ? 'selected' : ''}>${h}</option>`));
+    tr.innerHTML = `<td>${field}</td><td><select data-field="${field}" style="width:100%; padding:8px; border:2px solid var(--line-soft); border-radius:4px;">${options.join('')}</select></td>`;
+    tbody.appendChild(tr);
+  });
+  document.getElementById('mapping-section').classList.remove('hidden');
+  document.getElementById('preview-section').classList.add('hidden');
+}
+
+function getCurrentMapping() {
+  const selects = document.querySelectorAll('#mapping-body select');
+  const mapping = [];
+  selects.forEach(sel => {
+    if (sel.value) mapping.push({ 시스템항목명: sel.dataset.field, 업로드파일_컬럼명: sel.value });
+  });
+  return mapping;
+}
+
+const DATE_FIELDS = ['생년월일', '건강검진일', '구강검진일'];
+
+// 엑셀에서 날짜 서식이 적용되지 않은 셀은 일련번호(예: 46219)로 그대로 넘어오는데,
+// 생년월일/검진일 항목이면 이를 yyyy-mm-dd 형식의 날짜 문자열로 변환한다.
+function normalizeDateValue(v) {
+  if (typeof v === 'number' && v > 20000 && v < 60000) {
+    try {
+      return XLSX.SSF.format('yyyy-mm-dd', v);
+    } catch (e) {
+      return v;
+    }
+  }
+  return v;
+}
+
+function applyMappingToRows(mapping) {
+  const map = {};
+  mapping.forEach(m => map[m.시스템항목명] = m.업로드파일_컬럼명);
+  return parsedResultRows.map(raw => {
+    const row = {};
+    SYSTEM_FIELDS.forEach(field => {
+      const col = map[field];
+      if (col !== undefined) {
+        let value = raw[col];
+        if (DATE_FIELDS.includes(field)) value = normalizeDateValue(value);
+        row[field] = value;
+      }
+    });
+    return row;
+  });
+}
+
+async function runPreview() {
+  const mapping = getCurrentMapping();
+  const hasKeyMapping = mapping.some(m => ['학년', '반', '번호', '이름'].includes(m.시스템항목명));
+  if (!hasKeyMapping) { alert('최소한 학년/반/번호 또는 이름 중 하나는 매핑해야 합니다.'); return; }
+
+  await callApi('saveMapping', { mappings: mapping });
+
+  lastPreviewRows = applyMappingToRows(mapping);
+  unmatchedResolutions = {};
+
+  const defaultHealthOrg = document.getElementById('default-health-org').value;
+  const defaultDentalOrg = document.getElementById('default-dental-org').value;
+
+  const res = await callApi('previewMerge', { rows: lastPreviewRows, defaultHealthOrg, defaultDentalOrg });
+  if (!res.ok) { alert(res.message || '미리보기에 실패했습니다.'); return; }
+
+  await renderPreview(res.diffs, res.newCount);
+}
+
+async function renderPreview(diffs, newCount) {
+  document.getElementById('preview-section').classList.remove('hidden');
+
+  const unmatched = diffs.filter(d => d.status === 'UNMATCHED');
+  const updates = diffs.filter(d => d.status === 'UPDATE');
+
+  document.getElementById('preview-summary').textContent =
+    `신규 ${newCount}명 · 변경 ${updates.length}명 · 매칭 안 됨 ${unmatched.length}명`;
+
+  const unmatchedWrap = document.getElementById('unmatched-wrap');
+  const unmatchedBody = document.getElementById('unmatched-body');
+  unmatchedBody.innerHTML = '';
+  if (unmatched.length > 0) {
+    if (rosterCache.length === 0) {
+      const rosterRes = await callApi('getRoster');
+      if (rosterRes.ok) rosterCache = rosterRes.data;
+    }
+    unmatchedWrap.classList.remove('hidden');
+    unmatched.forEach(d => {
+      const tr = document.createElement('tr');
+      const options = ['<option value="">-- 선택 --</option>']
+        .concat(rosterCache.map(s => `<option value="${s.학년}-${s.반}-${s.번호}">${s.학년}학년 ${s.반}반 ${s.번호}번 ${s.이름}</option>`));
+      tr.innerHTML = `<td>${d.incoming.이름 || '(이름 없음)'}</td>
+        <td><select onchange="resolveUnmatched(${d.index}, this.value)">${options.join('')}</select></td>`;
+      unmatchedBody.appendChild(tr);
+    });
+  } else {
+    unmatchedWrap.classList.add('hidden');
+  }
+
+  const changesWrap = document.getElementById('changes-wrap');
+  const changesBody = document.getElementById('changes-body');
+  changesBody.innerHTML = '';
+  if (updates.length > 0) {
+    changesWrap.classList.remove('hidden');
+    updates.forEach(u => {
+      u.changedFields.forEach(f => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${u.name}</td><td>${f.field}</td><td>${f.oldValue}</td><td>${f.newValue}</td>`;
+        changesBody.appendChild(tr);
+      });
+    });
+  } else {
+    changesWrap.classList.add('hidden');
+  }
+}
+
+function resolveUnmatched(index, value) {
+  if (!value) { delete unmatchedResolutions[index]; return; }
+  const [학년, 반, 번호] = value.split('-');
+  unmatchedResolutions[index] = { 학년, 반, 번호 };
+}
+
+async function commitMergeNow() {
+  const rowsToCommit = lastPreviewRows.map((row, i) =>
+    unmatchedResolutions[i] ? Object.assign({}, row, unmatchedResolutions[i]) : row
+  );
+  const defaultHealthOrg = document.getElementById('default-health-org').value;
+  const defaultDentalOrg = document.getElementById('default-dental-org').value;
+
+  const res = await callApi('commitMerge', { rows: rowsToCommit, defaultHealthOrg, defaultDentalOrg });
+  if (res.ok) {
+    alert(`반영 완료: 신규 ${res.added}명 · 갱신 ${res.updated}명 · 매칭 실패 ${res.unmatched}명`);
+    document.getElementById('preview-section').classList.add('hidden');
+    document.getElementById('mapping-section').classList.add('hidden');
+    loadResults();
+    loadUnchecked();
+    loadStats();
+  } else {
+    alert(res.message || '반영에 실패했습니다.');
+  }
+}
+
+// ============ 개별 학생 검진완료 처리 ============
+
+async function lookupSingleStudent() {
+  if (rosterCache.length === 0) {
+    const r = await callApi('getRoster');
+    if (r.ok) rosterCache = r.data;
+  }
+  const 학년 = document.getElementById('single-grade').value;
+  const 반 = document.getElementById('single-class').value;
+  const 번호 = document.getElementById('single-number').value;
+  const found = rosterCache.find(s => s.학년 == 학년 && s.반 == 반 && s.번호 == 번호);
+  document.getElementById('single-student-name').textContent = found ? `→ ${found.이름}` : '해당 학생을 찾을 수 없습니다.';
+}
+
+async function markSingleChecked() {
+  const 학년 = document.getElementById('single-grade').value;
+  const 반 = document.getElementById('single-class').value;
+  const 번호 = document.getElementById('single-number').value;
+  const 건강검진기관 = document.getElementById('single-health-org').value;
+  const 구강검진기관 = document.getElementById('single-dental-org').value;
+  if (!학년 || !반 || !번호) { alert('학년/반/번호를 입력하세요.'); return; }
+  if (!건강검진기관) { alert('건강검진기관명을 입력하세요.'); return; }
+
+  const res = await callApi('markChecked', { 학년, 반, 번호, 건강검진기관, 구강검진기관 });
+  if (res.ok) {
+    alert('검진완료 처리되었습니다.');
+    document.getElementById('single-health-org').value = '';
+    document.getElementById('single-dental-org').value = '';
+    document.getElementById('single-student-name').textContent = '';
+    loadUnchecked();
+    loadResults();
+    loadStats();
+  } else {
+    alert(res.message || '처리에 실패했습니다.');
+  }
+}
+
+// ============ 검진결과 조회 ============
+
+const DEFAULT_RESULT_COLUMNS = [
+  '학년', '반', '번호', '이름', '성별', '생년월일',
+  '키(cm)', '몸무게(kg)', 'BMI판정', '건강검진_종합소견', '구강검진_종합소견'
+];
+let selectedResultColumns = DEFAULT_RESULT_COLUMNS.slice();
+
+function toggleColumnPicker() {
+  const picker = document.getElementById('column-picker');
+  if (picker.classList.contains('hidden')) {
+    renderColumnCheckboxes();
+    picker.classList.remove('hidden');
+  } else {
+    picker.classList.add('hidden');
+  }
+}
+
+function renderColumnCheckboxes() {
+  const container = document.getElementById('column-checkboxes');
+  container.innerHTML = SYSTEM_FIELDS.map(f => `
+    <label style="display:flex; align-items:center; gap:4px; font-size:12.5px; width:auto;">
+      <input type="checkbox" value="${f}" style="width:auto;" ${selectedResultColumns.includes(f) ? 'checked' : ''} onchange="onColumnToggle(this)">
+      ${f}
+    </label>
+  `).join('');
+}
+
+function onColumnToggle(checkbox) {
+  const field = checkbox.value;
+  if (checkbox.checked) {
+    if (!selectedResultColumns.includes(field)) selectedResultColumns.push(field);
+  } else {
+    selectedResultColumns = selectedResultColumns.filter(f => f !== field);
+  }
+}
+
+function selectAllColumns() {
+  selectedResultColumns = SYSTEM_FIELDS.slice();
+  renderColumnCheckboxes();
+}
+
+function deselectAllColumns() {
+  selectedResultColumns = [];
+  renderColumnCheckboxes();
+}
+
+function selectDefaultColumns() {
+  selectedResultColumns = DEFAULT_RESULT_COLUMNS.slice();
+  renderColumnCheckboxes();
+}
+
+let lastResultsData = [];
+
+async function loadResults() {
+  const 학년 = document.getElementById('results-grade').value;
+  const 반 = document.getElementById('results-class').value;
+  const 번호 = document.getElementById('results-number').value;
+  const 이름 = document.getElementById('results-name').value;
+  const onlyFlagged = document.getElementById('results-only-flagged').checked;
+
+  const res = await callApi('getResults', { 학년, 반, 번호, 이름, onlyFlagged });
+  if (!res.ok) return;
+  lastResultsData = res.data;
+
+  const cols = selectedResultColumns;
+
+  document.getElementById('results-thead').innerHTML =
+    '<tr>' + cols.map(c => `<th>${c}</th>`).join('') + '<th>유소견 항목</th></tr>';
+
+  const tbody = document.getElementById('results-body');
+  tbody.innerHTML = '';
+  res.data.forEach(r => {
+    const tr = document.createElement('tr');
+    if (r.유소견여부) tr.style.color = '#1a56db';
+    const cells = cols.map(c => `<td>${r[c] !== undefined && r[c] !== null ? r[c] : ''}</td>`).join('');
+    tr.innerHTML = cells + `<td>${r.유소견항목 || ''}</td>`;
+    tbody.appendChild(tr);
+  });
+  document.getElementById('results-count').textContent = `총 ${res.data.length}명`;
+}
+
+function downloadResultsExcel() {
+  if (lastResultsData.length === 0) { alert('먼저 조회를 눌러주세요.'); return; }
+  const cols = selectedResultColumns.concat(['유소견항목']);
+  const rows = lastResultsData.map(r => {
+    const obj = {};
+    selectedResultColumns.forEach(c => { obj[c] = (r[c] !== undefined && r[c] !== null) ? r[c] : ''; });
+    obj['유소견항목'] = r.유소견항목 || '';
+    return obj;
+  });
+  exportToExcel(cols, rows, '검진결과_조회.xlsx');
+}
+
+// ============ 미검진자 조회 ============
+
+async function loadUnchecked() {
+  const 학년 = document.getElementById('unchecked-grade').value;
+  const 반 = document.getElementById('unchecked-class').value;
+  const res = await callApi('getUnchecked', { 학년, 반 });
+  if (!res.ok) return;
+  const tbody = document.getElementById('unchecked-body');
+  tbody.innerHTML = '';
+  res.data.forEach(s => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${s.학년}</td><td>${s.반}</td><td>${s.번호}</td><td>${s.이름}</td>
+      <td>${s.사유 || ''}</td>
+      <td>
+        <button onclick='markUncheckedDone(${s.학년},${s.반},${s.번호},"${s.이름}")'>완료처리</button>
+        <button onclick='markUncheckedReason(${s.학년},${s.반},${s.번호},"${s.이름}")'>사유입력</button>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+  document.getElementById('unchecked-count').textContent = `총 ${res.data.length}명`;
+}
+
+async function markUncheckedDone(학년, 반, 번호, 이름) {
+  const org = prompt(`${이름} 학생의 건강검진기관명을 입력하세요.`);
+  if (!org) return;
+  const res = await callApi('markChecked', { 학년, 반, 번호, 건강검진기관: org });
+  if (res.ok) {
+    loadUnchecked();
+    loadResults();
+    loadStats();
+  } else {
+    alert(res.message || '처리에 실패했습니다.');
+  }
+}
+
+async function markUncheckedReason(학년, 반, 번호, 이름) {
+  const reason = prompt(`${이름} 학생의 미검진 사유를 입력하세요.`, '개인 사유로 검진을 원하지 않음');
+  if (reason === null) return;
+  const res = await callApi('saveUncheckedReason', { 학년, 반, 번호, 이름, 사유: reason });
+  if (res.ok) {
+    loadUnchecked();
+  } else {
+    alert(res.message || '사유 등록에 실패했습니다.');
+  }
+}
+
+async function downloadUnchecked() {
+  try {
+    const 학년 = document.getElementById('unchecked-grade').value;
+    const 반 = document.getElementById('unchecked-class').value;
+    const res = await callApi('getUnchecked', { 학년, 반 });
+    if (!res.ok) { alert(res.message || '다운로드에 실패했습니다.'); return; }
+    exportToExcel(['학년', '반', '번호', '이름', '사유'], res.data, '미검진자명단.xlsx');
+  } catch (err) {
+    alert('다운로드 중 오류가 발생했습니다: ' + err.message);
+  }
+}
+
+// ============ 유소견 통계 ============
+
+async function loadStats() {
+  const 학년 = document.getElementById('stats-grade').value;
+  const 반 = document.getElementById('stats-class').value;
+  const res = await callApi('getStats', { 학년, 반 });
+  if (!res.ok) return;
+  const d = res.data;
+
+  const summary = document.getElementById('stats-summary');
+  summary.innerHTML = `
+    <div class="stat-box"><div class="num">${d.검사대상자수}</div><div class="label">검사대상자수</div></div>
+    <div class="stat-box"><div class="num">${d.검진완료학생수}</div><div class="label">검진완료학생수</div></div>
+    <div class="stat-box"><div class="num">${d.유소견자수}</div><div class="label">유소견자수</div></div>
+  `;
+
+  const tbody = document.getElementById('stats-body');
+  tbody.innerHTML = '';
+  Object.entries(d.항목별).forEach(([item, count]) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${item}</td><td>${count}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  const bmiSummary = document.getElementById('bmi-summary');
+  bmiSummary.innerHTML = Object.entries(d.체질량지수별).map(([label, count]) =>
+    `<div class="stat-box"><div class="num">${count}</div><div class="label">${label}</div></div>`
+  ).join('');
+
+  const scoliosisSummary = document.getElementById('scoliosis-summary');
+  scoliosisSummary.innerHTML = `<div class="stat-box"><div class="num">${d.척추측만수}</div><div class="label">척추측만</div></div>`;
+}
+
+// ============ 엑셀 다운로드 ============
+
+function exportToExcel(headers, data, filename) {
+  try {
+    const ws = (data && data.length > 0)
+      ? XLSX.utils.json_to_sheet(data, { header: headers })
+      : XLSX.utils.aoa_to_sheet([headers]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+    XLSX.writeFile(wb, filename);
+  } catch (err) {
+    alert('엑셀 파일 생성 중 오류가 발생했습니다: ' + err.message);
+  }
+}
+
+function exportMultiSheetExcel(sheets, filename) {
+  try {
+    const wb = XLSX.utils.book_new();
+    sheets.forEach(s => {
+      const ws = (s.data && s.data.length > 0)
+        ? XLSX.utils.json_to_sheet(s.data, { header: s.headers })
+        : XLSX.utils.aoa_to_sheet([s.headers]);
+      XLSX.utils.book_append_sheet(wb, ws, s.name);
+    });
+    XLSX.writeFile(wb, filename);
+  } catch (err) {
+    alert('엑셀 파일 생성 중 오류가 발생했습니다: ' + err.message);
+  }
+}
+
+async function downloadNeisBody() {
+  try {
+    const 학년 = document.getElementById('download-grade').value;
+    const 반 = document.getElementById('download-class').value;
+    const res = await callApi('downloadNeisBodySheet', { 학년, 반 });
+    if (!res.ok) { alert(res.message || '다운로드에 실패했습니다.'); return; }
+    exportToExcel(res.headers, res.data, '신체발달_나이스업로드.xlsx');
+  } catch (err) {
+    alert('다운로드 중 오류가 발생했습니다: ' + err.message);
+  }
+}
+
+async function downloadNeisHealth() {
+  try {
+    const 학년 = document.getElementById('download-grade').value;
+    const 반 = document.getElementById('download-class').value;
+    const res = await callApi('downloadNeisHealthSheet', { 학년, 반 });
+    if (!res.ok) { alert(res.message || '다운로드에 실패했습니다.'); return; }
+    exportToExcel(res.headers, res.data, '건강검진_나이스업로드.xlsx');
+  } catch (err) {
+    alert('다운로드 중 오류가 발생했습니다: ' + err.message);
+  }
+}
+
+async function downloadAll() {
+  try {
+    const 학년 = document.getElementById('download-grade').value;
+    const 반 = document.getElementById('download-class').value;
+    const res = await callApi('downloadAllSorted', { 학년, 반 });
+    if (!res.ok) { alert(res.message || '다운로드에 실패했습니다.'); return; }
+
+    const sheets = [{ name: '검진결과', headers: res.headers, data: res.data }];
+
+    const uncheckedRes = await callApi('getUnchecked', { 학년, 반 });
+    if (uncheckedRes.ok && uncheckedRes.data.length > 0) {
+      const sorted = uncheckedRes.data.slice().sort((a, b) => {
+        if (a.학년 !== b.학년) return a.학년 - b.학년;
+        if (a.반 !== b.반) return a.반 - b.반;
+        return a.번호 - b.번호;
+      });
+      const uncheckedRows = sorted.map((s, i) => ({
+        '순': i + 1, '학년': s.학년, '반': s.반, '번호': s.번호, '이름': s.이름, '미검진 사유': s.사유 || ''
+      }));
+      sheets.push({ name: '미검진자', headers: ['순', '학년', '반', '번호', '이름', '미검진 사유'], data: uncheckedRows });
+    }
+
+    exportMultiSheetExcel(sheets, '전체검진결과_반번호순.xlsx');
+  } catch (err) {
+    alert('다운로드 중 오류가 발생했습니다: ' + err.message);
+  }
+}
+
+// ============ 유소견 키워드 설정 ============
+
+async function loadKeywords() {
+  const res = await callApi('getKeywords');
+  if (!res.ok) return;
+  const tbody = document.getElementById('keywords-body');
+  tbody.innerHTML = '';
+  res.data.forEach(k => addKeywordRow(k.유소견항목, k.키워드));
+}
+
+function addKeywordRow(item, keyword) {
+  const tbody = document.getElementById('keywords-body');
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><input type="text" class="kw-item" value="${item || ''}" placeholder="예: 빈혈"></td>
+    <td><input type="text" class="kw-keyword" value="${keyword || ''}" placeholder="예: 빈혈"></td>
+    <td><button class="danger" onclick="this.closest('tr').remove()">삭제</button></td>
+  `;
+  tbody.appendChild(tr);
+}
+
+async function saveKeywordsNow() {
+  const rows = document.querySelectorAll('#keywords-body tr');
+  const keywords = [];
+  rows.forEach(tr => {
+    const item = tr.querySelector('.kw-item').value.trim();
+    const keyword = tr.querySelector('.kw-keyword').value.trim();
+    if (item && keyword) keywords.push({ 유소견항목: item, 키워드: keyword });
+  });
+  const res = await callApi('saveKeywords', { keywords });
+  const msg = document.getElementById('keywords-msg');
+  msg.textContent = res.ok ? '저장되었습니다.' : (res.message || '저장에 실패했습니다.');
+  if (res.ok) loadStats();
+}
+</script>
+</body>
+</html>
